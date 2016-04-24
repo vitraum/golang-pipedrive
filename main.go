@@ -14,6 +14,7 @@ type endpoints struct {
 	filters       string
 }
 
+// API represents the information needed to access the Pipedrive API v1
 type API struct {
 	token       string
 	eps         endpoints
@@ -24,6 +25,7 @@ type API struct {
 // Option represents an option given to the API constructor
 type Option func(*API) error
 
+// NewAPI create a new API object from the given options
 func NewAPI(options ...Option) (*API, error) {
 	pd := &API{
 		logURL: func(u string) {},
@@ -39,6 +41,7 @@ func NewAPI(options ...Option) (*API, error) {
 	return pd, nil
 }
 
+// FetchDealsFromPipeline returns a list of all deals in a pipeline, optionally using a filter
 func (pd *API) FetchDealsFromPipeline(plID, filterID int) (Deals, error) {
 	var deals Deals
 	start := 0
@@ -65,14 +68,13 @@ func (pd *API) FetchDealsFromPipeline(plID, filterID int) (Deals, error) {
 
 		start += pres.AdditionalData.Pagination.Limit
 	}
-	return deals, nil
 }
 
-func (pd *API) FetchDealUpdates(dealId int) (DealUpdates, error) {
+func (pd *API) FetchDealUpdates(dealID int) (DealUpdates, error) {
 	var dealUpdates DealUpdates
 	start := 0
 	for {
-		url := fmt.Sprintf(pd.eps.deals, dealId, start)
+		url := fmt.Sprintf(pd.eps.deals, dealID, start)
 		res, err := pd.getEndpoint(url)
 		if err != nil {
 			return nil, err
@@ -95,7 +97,6 @@ func (pd *API) FetchDealUpdates(dealId int) (DealUpdates, error) {
 
 		start += pres.AdditionalData.Pagination.Limit
 	}
-	return dealUpdates, nil
 }
 
 func (pd *API) FetchPipelineChanges(deals []Deal, stages Stages) (PipelineChangeResults, error) {
@@ -133,7 +134,7 @@ func (pd *API) FetchPipelineChanges(deals []Deal, stages Stages) (PipelineChange
 	return res, nil
 }
 
-func (pd *API) GetPipelineIdByName(name string) (int, error) {
+func (pd *API) GetPipelineIDByName(name string) (int, error) {
 	res, err := pd.getEndpoint(pd.eps.pipelines)
 	if err != nil {
 		return 0, err
@@ -153,7 +154,7 @@ func (pd *API) GetPipelineIdByName(name string) (int, error) {
 		if pl.Name != name {
 			continue
 		}
-		return pl.Id, nil
+		return pl.ID, nil
 	}
 
 	return 0, fmt.Errorf("Pipeline '%s' not found", name)
@@ -174,7 +175,7 @@ func (pd *API) RetrieveStagesForPipeline(plID int) (Stages, error) {
 	return sres.Data, nil
 }
 
-func (pd *API) GetFilterIdByName(name string) (int, error) {
+func (pd *API) GetFilterIDByName(name string) (int, error) {
 	res, err := pd.getEndpoint(pd.eps.filters)
 	if err != nil {
 		return 0, err
@@ -197,4 +198,22 @@ func (pd *API) GetFilterIdByName(name string) (int, error) {
 	}
 
 	return 0, fmt.Errorf("Pipeline '%s' not found", name)
+}
+
+func (pd *API) GetDealFieldByID(id int) (DealField, error) {
+	res, err := pd.getEndpoint(pd.eps.filters)
+	if err != nil {
+		return DealField{}, err
+	}
+
+	var pres struct {
+		apiResult
+		Data DealField
+	}
+	err = json.NewDecoder(res.Body).Decode(&pres)
+	if err != nil {
+		return DealField{}, err
+	}
+
+	return pres.Data, nil
 }

@@ -1,12 +1,9 @@
 package pipedrive
 
-import (
-	"strconv"
-	"time"
-)
+import "time"
 
 type Pipeline struct {
-	Id         int    `json:"id"`
+	ID         int    `json:"id"`
 	Name       string `json:"name"`
 	UrlTitle   string `json:"url_title"`
 	OrderNr    int    `json:"order_nr"`
@@ -40,6 +37,7 @@ type Deal struct {
 	Status       string  `json:"status"`
 	WonAt        *Time   `json:"won_time"`
 	LostAt       *Time   `json:"lost_time"`
+	Source       string  `json:"898dea9060ea3bb803e6a4f58c3c780b44e77cf7"`
 
 	/*
 	   "currency": "EUR",
@@ -208,18 +206,6 @@ type PipelineChangeResult struct {
 
 type PipelineChangeResults []PipelineChangeResult
 
-func (cr PipelineChangeResult) ID() string {
-	return strconv.Itoa(cr.Deal.Id)
-}
-
-func (cr PipelineChangeResult) Status() string {
-	return cr.Deal.Status
-}
-
-func (cr PipelineChangeResult) Value() float64 {
-	return cr.Deal.Value
-}
-
 func (cr PipelineChangeResult) DecisionTime() time.Time {
 	end := time.Now()
 	if cr.Deal.Status == "won" {
@@ -230,10 +216,26 @@ func (cr PipelineChangeResult) DecisionTime() time.Time {
 	return end
 }
 
-func (cr PipelineChangeResult) Age() time.Duration {
-	return cr.DecisionTime().Sub(cr.Deal.Added.Time)
-}
+type DealField struct {
+	ID         int    `json:"id"`
+	Name       string `json:"name"`
+	key        string `json:"key"`
+	OrderNr    int    `json:"order_nr"`
+	AddTime    Time   `json:"add_time"`
+	UpdateTime Time   `json:"update_time"`
+	Options    *[]struct {
+		ID    int    `json:"id"`
+		Label string `json:"label"`
+	} `json:"options"`
 
-func (cr PipelineChangeResult) DealUpdates() DealFlowUpdates {
-	return cr.Updates
+	/*
+	   "field_type": "enum",
+	   "active_flag": true,
+	   "edit_flag": true,
+	   "index_visible_flag": true,
+	   "details_visible_flag": true,
+	   "add_visible_flag": true,
+	   "important_flag": true,
+	   "bulk_edit_allowed": true,
+	*/
 }
