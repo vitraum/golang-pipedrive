@@ -27,28 +27,28 @@ type apiResult struct {
 type Deal struct {
 	Id int `json:"id"`
 	//"user_id": 872124,
-	Person       int     `json:"person_id"`
-	Organization int     `json:"org_id"`
-	Stage        int     `json:"stage_id"`
-	Title        string  `json:"title"`
-	Value        float64 `json:"value"`
-	Added        Time    `json:"add_time"`
-	Updated      Time    `json:"update_time"`
-	Status       string  `json:"status"`
-	WonAt        *Time   `json:"won_time"`
-	LostAt       *Time   `json:"lost_time"`
-	Source       string  `json:"898dea9060ea3bb803e6a4f58c3c780b44e77cf7"`
+	Person          int     `json:"person_id"`
+	Organization    int     `json:"org_id"`
+	Stage           int     `json:"stage_id"`
+	StageChangetime *Time   `json:"stage_change_time"`
+	Title           string  `json:"title"`
+	Value           float64 `json:"value"`
+	Added           Time    `json:"add_time"`
+	Updated         *Time   `json:"update_time"`
+	Status          string  `json:"status"`
+	WonAt           *Time   `json:"won_time"`
+	LostAt          *Time   `json:"lost_time"`
+	LastActivity    *Date   `json:"last_activity_date"`
+	Source          string  `json:"898dea9060ea3bb803e6a4f58c3c780b44e77cf7"`
 
 	/*
 	   "currency": "EUR",
-	   "stage_change_time": "2015-09-30 13:28:03",
 	   "active": true,
 	   "deleted": false,
 	   "next_activity_date": "2015-12-14",
 	   "next_activity_time": "10:15:00",
 	   "next_activity_id": 5309,
 	   "last_activity_id": 5303,
-	   "last_activity_date": "2015-10-29",
 	   "lost_reason": null,
 	   "visible_to": "3",
 	   "close_time": null,
