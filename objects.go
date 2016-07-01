@@ -170,9 +170,9 @@ type Filter struct {
 	Name       string `json:"name"`
 	Active     bool   `json:"active_flag"`
 	Type       string `json:"type"`
-	AddTime    Time   `json:"add_time"`
-	UpdateTime Time   `json:"update_time"`
-	VisibleTo  int    `json:"visible_to"`
+	AddTime    *Time  `json:"add_time"`
+	UpdateTime *Time  `json:"update_time"`
+	VisibleTo  string `json:"visible_to"`
 	UserID     int    `json:"user_id"`
 }
 
