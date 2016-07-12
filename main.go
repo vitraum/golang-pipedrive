@@ -9,6 +9,7 @@ import (
 type endpoints struct {
 	pipelineDeals string
 	deals         string
+	dealFilter    string
 	pipelines     string
 	stages        string
 	filters       string
@@ -39,6 +40,35 @@ func NewAPI(options ...Option) (*API, error) {
 	}
 
 	return pd, nil
+}
+
+// FetchDeals returns a list of deals, optionally using a filter
+func (pd *API) FetchDeals(filterID int) (Deals, error) {
+	var deals Deals
+	start := 0
+	for {
+		url := fmt.Sprintf(pd.eps.dealFilter, start, filterID)
+		res, err := pd.getEndpoint(url)
+		if err != nil {
+			return nil, err
+		}
+
+		var pres struct {
+			apiResult
+			Data Deals
+		}
+		err = json.NewDecoder(res.Body).Decode(&pres)
+		if err != nil {
+			return nil, err
+		}
+		deals = append(deals, pres.Data...)
+
+		if !pres.AdditionalData.Pagination.MoreItemsInCollection {
+			return deals, nil
+		}
+
+		start += pres.AdditionalData.Pagination.Limit
+	}
 }
 
 // FetchDealsFromPipeline returns a list of all deals in a pipeline, optionally using a filter
