@@ -18,6 +18,21 @@ func LogURLs(a *API) error {
 	return nil
 }
 
+func CustomURLLogger(logger func(u string), elipsifyToken bool) Option {
+	return func(a *API) error {
+		r := regexp.MustCompile(fmt.Sprintf("api_token=%s", a.token))
+		a.logURL = func(u string) {
+			prettyURL := u
+			if elipsifyToken {
+				prettyURL = r.ReplaceAllString(u, "api_token=…")
+			}
+			logger(prettyURL)
+		}
+
+		return nil
+	}
+}
+
 func FixedToken(token string) Option {
 	return func(a *API) error {
 		if token == "" {
