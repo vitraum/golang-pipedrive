@@ -1,13 +1,16 @@
 package pipedrive
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 )
 
 type endpoints struct {
 	pipelineDeals string
+	deal          string
 	deals         string
 	dealFilter    string
 	pipelines     string
@@ -43,8 +46,8 @@ func NewAPI(options ...Option) (*API, error) {
 }
 
 // FetchDeals returns a list of deals, optionally using a filter
-func (pd *API) FetchDeals(filterID int) (Deals, error) {
-	var deals Deals
+func (pd *API) FetchDeals(filterID int) (DealRefs, error) {
+	var deals DealRefs
 	start := 0
 	for {
 		url := fmt.Sprintf(pd.eps.dealFilter, start, filterID)
@@ -55,7 +58,7 @@ func (pd *API) FetchDeals(filterID int) (Deals, error) {
 
 		var pres struct {
 			apiResult
-			Data Deals
+			Data DealRefs
 		}
 		err = json.NewDecoder(res.Body).Decode(&pres)
 		if err != nil {
@@ -69,6 +72,31 @@ func (pd *API) FetchDeals(filterID int) (Deals, error) {
 
 		start += pres.AdditionalData.Pagination.Limit
 	}
+}
+
+// FetchDeal returns a list of deals, optionally using a filter
+func (pd *API) FetchDeal(dealID int) (DealRef, error) {
+	url := fmt.Sprintf(pd.eps.deal, dealID)
+	res, err := pd.getEndpoint(url)
+	if err != nil {
+		return DealRef{}, err
+	}
+
+	var pres struct {
+		apiResult
+		Data DealRef
+	}
+
+	var buf bytes.Buffer
+	tee := io.TeeReader(res.Body, &buf)
+	err = json.NewDecoder(tee).Decode(&pres)
+
+	if err != nil {
+		fmt.Println(&buf)
+		return DealRef{}, err
+	}
+
+	return pres.Data, nil
 }
 
 // FetchDealsFromPipeline returns a list of all deals in a pipeline, optionally using a filter

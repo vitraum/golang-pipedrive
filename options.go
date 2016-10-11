@@ -47,6 +47,7 @@ func HTTPFetcher(a *API) error {
 	a.eps = endpoints{
 		pipelineDeals: "https://api.pipedrive.com/v1/pipelines/%d/deals?everyone=0&start=%d&filter_id=%d",
 		deals:         "https://api.pipedrive.com/v1/deals/%d/updates?start=%d",
+		deal:          "https://api.pipedrive.com/v1/deals/%d",
 		dealFilter:    "https://api.pipedrive.com/v1/deals?start=%d&filter_id=%d",
 		pipelines:     "https://api.pipedrive.com/v1/pipelines",
 		stages:        "https://api.pipedrive.com/v1/stages?pipeline_id=%d",

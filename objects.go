@@ -24,6 +24,37 @@ type apiResult struct {
 	} `json:"additional_data"`
 }
 
+type DealRef struct {
+	Id int `json:"id"`
+	//"user_id": 872124,
+	Person struct {
+		ID    int    `json:"value"`
+		Name  string `json:"name"`
+		Email []struct {
+			Label   string `json:"label"`
+			Value   string `json:"value"`
+			Primary bool   `json:"primary"`
+		} `json:"email"`
+	} `json:"person_id"`
+	Organization struct {
+		ID   int    `json:"value"`
+		Name string `json:"name"`
+	} `json:"org_id"`
+	Stage           int     `json:"stage_id"`
+	StageChangetime *Time   `json:"stage_change_time"`
+	Title           string  `json:"title"`
+	Value           float64 `json:"value"`
+	Added           Time    `json:"add_time"`
+	Updated         *Time   `json:"update_time"`
+	Status          string  `json:"status"`
+	WonAt           *Time   `json:"won_time"`
+	LostAt          *Time   `json:"lost_time"`
+	LastActivity    *Date   `json:"last_activity_date"`
+	Source          string  `json:"898dea9060ea3bb803e6a4f58c3c780b44e77cf7"`
+}
+
+type DealRefs []DealRef
+
 type Deal struct {
 	Id int `json:"id"`
 	//"user_id": 872124,
