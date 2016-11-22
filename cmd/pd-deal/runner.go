@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"math/rand"
 	"os"
+	"path"
 	"strconv"
 	"time"
 
@@ -23,8 +24,8 @@ func main() {
 	var verbose = false
 	flag.BoolVar(&verbose, "verbose", verbose, "enable verbose output")
 
-	var outputTemplate = "{{.ID}} {{.Status}}\n"
-	flag.StringVar(&outputTemplate, "template", "", "text/template to be printed for each deal")
+	var outputTemplate = "{{.Id}} {{.Status}}"
+	flag.StringVar(&outputTemplate, "template", outputTemplate, "text/template to be printed for each deal")
 
 	var skipNewline = false
 	flag.BoolVar(&skipNewline, "newline", skipNewline, "do not append newline to template")
@@ -38,17 +39,31 @@ func main() {
 	var filterID = 0
 	flag.IntVar(&filterID, "filter", 0, "filter ID to use for all deals")
 
+	var showVariables = false
+	flag.BoolVar(&showVariables, "showVariables", showVariables, "dump a sample deal")
+
 	flag.Parse()
 
 	if token == "" {
-		fmt.Println("token is mandatory")
-		flag.Usage()
+		execname := path.Base(os.Args[0])
+		fmt.Printf("%s prints information about all deals\nUsage: %s [dealid] [dealid]...\n",
+			execname, execname)
+		flag.PrintDefaults()
 		os.Exit(1)
 	}
 
 	apiOptions := []pipedrive.Option{
 		pipedrive.HTTPFetcher,
 		pipedrive.FixedToken(token),
+	}
+
+	if filterID > 0 && flag.NArg() > 0 {
+		fmt.Println("Fatal error: filter and explicit dealIDs are mutually exclusive\n")
+		os.Exit(1)
+	}
+
+	if showVariables {
+		sample = 1
 	}
 
 	if sample > 0 {
@@ -79,10 +94,13 @@ func main() {
 		panic(err)
 	}
 
+	var deals []interface{}
 	if flag.NArg() > 0 {
-		selectDeals(pd, flag.Args())
+		deals, err = selectDeals(pd, flag.Args())
+		if err != nil {
+			panic(err)
+		}
 	} else {
-		var deals pipedrive.DealRefs
 		alldeals, err := pd.FetchDeals(filterID)
 		if err != nil {
 			panic(err)
@@ -93,14 +111,21 @@ func main() {
 				deals = append(deals, alldeals[rand.Intn(len(alldeals))])
 			}
 		} else {
-			deals = alldeals
-		}
-
-		for _, deal := range deals {
-			err = printDeal(deal)
-			if err != nil {
-				panic(err)
+			for i := 0; i < len(alldeals); i++ {
+				deals = append(deals, alldeals[i])
 			}
+		}
+	}
+
+	if showVariables {
+		fmt.Printf("%+v\n", deals[0])
+		os.Exit(0)
+	}
+
+	for _, deal := range deals {
+		err = printDeal(deal)
+		if err != nil {
+			panic(err)
 		}
 	}
 }
@@ -109,22 +134,19 @@ func printDeal(deal interface{}) error {
 	return tmpl.Execute(os.Stdout, deal)
 }
 
-func selectDeals(pd *pipedrive.API, deals []string) error {
-	for _, dealString := range deals {
+func selectDeals(pd *pipedrive.API, dealIDs []string) ([]interface{}, error) {
+	deals := make([]interface{}, 0, len(dealIDs))
+	for _, dealString := range dealIDs {
 		dealID, err := strconv.Atoi(dealString)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		deal, err := pd.FetchDeal(dealID)
 		if err != nil {
-			return err
+			return nil, err
 		}
-
-		err = printDeal(deal)
-		if err != nil {
-			return err
-		}
+		deals = append(deals, deal)
 	}
-	return nil
+	return deals, nil
 }
