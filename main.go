@@ -45,6 +45,44 @@ func NewAPI(options ...Option) (*API, error) {
 	return pd, nil
 }
 
+type GenericResponse struct {
+	apiResult
+	Data json.RawMessage
+}
+
+type Urler func(offset int) (string, error)
+
+func (pd *API) FetchGeneric(urlGenerator Urler, results chan GenericResponse) error {
+	offset := 0
+	for {
+		url, err := urlGenerator(offset)
+		if err != nil {
+			return err
+		}
+		if url == "" {
+			return nil
+		}
+
+		res, err := pd.getEndpoint(url)
+		if err != nil {
+			return err
+		}
+
+		var response GenericResponse
+		err = json.NewDecoder(res.Body).Decode(&response)
+		if err != nil {
+			return err
+		}
+		results <- response
+
+		if !response.AdditionalData.Pagination.MoreItemsInCollection {
+			return err
+		}
+
+		offset += response.AdditionalData.Pagination.Limit
+	}
+}
+
 // FetchDeals returns a list of deals, optionally using a filter
 func (pd *API) FetchDeals(filterID int) (DealRefs, error) {
 	var deals DealRefs
