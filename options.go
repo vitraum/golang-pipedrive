@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 )
+
+var ErrEmptyToken = errors.New("Token must not be empty")
 
 func LogURLs(a *API) error {
 	r := regexp.MustCompile(fmt.Sprintf("api_token=%s", a.token))
@@ -36,9 +39,25 @@ func CustomURLLogger(logger func(u string), elipsifyToken bool) Option {
 func FixedToken(token string) Option {
 	return func(a *API) error {
 		if token == "" {
-			return errors.New("Token must not be empty")
+			return ErrEmptyToken
 		}
 		a.token = token
+		return nil
+	}
+}
+
+func EnvToken(envName string) Option {
+	return func(a *API) error {
+		if envName == "" {
+			envName = "PDTOKEN"
+		}
+
+		token := os.Getenv(envName)
+		if token == "" {
+			return ErrEmptyToken
+		}
+		a.token = token
+
 		return nil
 	}
 }
