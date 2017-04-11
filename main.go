@@ -18,11 +18,13 @@ type endpoints struct {
 	filters       string
 }
 
+type getEndpointFunc func(endpoint string) (*http.Response, error)
+
 // API represents the information needed to access the Pipedrive API v1
 type API struct {
 	token       string
 	eps         endpoints
-	getEndpoint func(endpoint string) (*http.Response, error)
+	getEndpoint getEndpointFunc
 	logURL      func(url string)
 }
 
