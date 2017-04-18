@@ -3,6 +3,7 @@ package pipedrive
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -13,13 +14,13 @@ import (
 var ErrEmptyToken = errors.New("Token must not be empty")
 
 var defaultEndpoints = endpoints{
-	pipelineDeals: "https://api.pipedrive.com/v1/pipelines/%d/deals?everyone=0&start=%d&filter_id=%d",
-	deals:         "https://api.pipedrive.com/v1/deals/%d/updates?start=%d",
-	deal:          "https://api.pipedrive.com/v1/deals/%d",
-	dealFilter:    "https://api.pipedrive.com/v1/deals?start=%d&filter_id=%d",
-	pipelines:     "https://api.pipedrive.com/v1/pipelines",
-	stages:        "https://api.pipedrive.com/v1/stages?pipeline_id=%d",
-	filters:       "https://api.pipedrive.com/v1/filters",
+	PipelineDeals: "https://api.pipedrive.com/v1/pipelines/%d/deals?everyone=0&start=%d&filter_id=%d",
+	Deals:         "https://api.pipedrive.com/v1/deals/%d/updates?start=%d",
+	Deal:          "https://api.pipedrive.com/v1/deals/%d",
+	DealFilter:    "https://api.pipedrive.com/v1/deals?start=%d&filter_id=%d",
+	Pipelines:     "https://api.pipedrive.com/v1/pipelines",
+	Stages:        "https://api.pipedrive.com/v1/stages?pipeline_id=%d",
+	Filters:       "https://api.pipedrive.com/v1/filters",
 }
 
 func LogURLs(a *API) error {
@@ -88,21 +89,43 @@ func (a *API) endpointFuncWithClient(get getEndpointFunc) getEndpointFunc {
 	}
 }
 
+func (a *API) requestEndpointFuncWithClient(doer func(req *http.Request) (*http.Response, error), method string) putEndpointFunc {
+	return func(endpoint string, data io.Reader) (*http.Response, error) {
+		u, err := url.Parse(endpoint)
+		if err != nil {
+			return nil, err
+		}
+		values := u.Query()
+		values.Add("api_token", a.token)
+		u.RawQuery = values.Encode()
+		a.logURL(u.String())
+		req, err := http.NewRequest(method, u.String(), data)
+		if err != nil {
+			return nil, err
+		}
+		return doer(req)
+	}
+}
+
 func HTTPFetcher(a *API) error {
-	a.eps = defaultEndpoints
+	a.Endpoints = defaultEndpoints
 
 	a.getEndpoint = a.endpointFuncWithClient(http.Get)
+
+	client := http.Client{}
+	a.putEndpoint = a.requestEndpointFuncWithClient(client.Do, "PUT")
 	return nil
 }
 
 func HTTPFetcherWithTimeout(timeout time.Duration) Option {
 	return func(a *API) error {
-		a.eps = defaultEndpoints
+		a.Endpoints = defaultEndpoints
 
 		client := http.Client{
 			Timeout: timeout,
 		}
 		a.getEndpoint = a.endpointFuncWithClient(client.Get)
+		a.putEndpoint = a.requestEndpointFuncWithClient(client.Do, "PUT")
 		return nil
 	}
 }

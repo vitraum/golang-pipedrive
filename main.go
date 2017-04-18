@@ -3,28 +3,31 @@ package pipedrive
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 )
 
 type endpoints struct {
-	pipelineDeals string
-	deal          string
-	deals         string
-	dealFilter    string
-	pipelines     string
-	stages        string
-	filters       string
+	PipelineDeals string
+	Deal          string
+	Deals         string
+	DealFilter    string
+	Pipelines     string
+	Stages        string
+	Filters       string
 }
 
 type getEndpointFunc func(endpoint string) (*http.Response, error)
+type putEndpointFunc func(endpoint string, data io.Reader) (*http.Response, error)
 
 // API represents the information needed to access the Pipedrive API v1
 type API struct {
 	token       string
-	eps         endpoints
+	Endpoints   endpoints
 	getEndpoint getEndpointFunc
+	putEndpoint putEndpointFunc
 	logURL      func(url string)
 }
 
@@ -85,12 +88,31 @@ func (pd *API) FetchGeneric(urlGenerator Urler, results chan GenericResponse) er
 	}
 }
 
+func (pd *API) PutGeneric(endpoint string, data io.Reader, results chan GenericResponse) error {
+	res, err := pd.putEndpoint(endpoint, data)
+	if err != nil {
+		return err
+	}
+
+	var response GenericResponse
+	err = json.NewDecoder(res.Body).Decode(&response)
+	if err != nil {
+		return err
+	}
+	results <- response
+
+	if response.AdditionalData.Pagination.MoreItemsInCollection {
+		return errors.New("Don't know how to handle MoreItemsInCollection after PUT")
+	}
+	return nil
+}
+
 // FetchDeals returns a list of deals, optionally using a filter
 func (pd *API) FetchDeals(filterID int) (DealRefs, error) {
 	var deals DealRefs
 	start := 0
 	for {
-		url := fmt.Sprintf(pd.eps.dealFilter, start, filterID)
+		url := fmt.Sprintf(pd.Endpoints.DealFilter, start, filterID)
 		res, err := pd.getEndpoint(url)
 		if err != nil {
 			return nil, err
@@ -116,7 +138,7 @@ func (pd *API) FetchDeals(filterID int) (DealRefs, error) {
 
 // FetchDeal returns a list of deals, optionally using a filter
 func (pd *API) FetchDeal(dealID int) (DealRef, error) {
-	url := fmt.Sprintf(pd.eps.deal, dealID)
+	url := fmt.Sprintf(pd.Endpoints.Deal, dealID)
 	res, err := pd.getEndpoint(url)
 	if err != nil {
 		return DealRef{}, err
@@ -144,7 +166,7 @@ func (pd *API) FetchDealsFromPipeline(plID, filterID int) (Deals, error) {
 	var deals Deals
 	start := 0
 	for {
-		url := fmt.Sprintf(pd.eps.pipelineDeals, plID, start, filterID)
+		url := fmt.Sprintf(pd.Endpoints.PipelineDeals, plID, start, filterID)
 		res, err := pd.getEndpoint(url)
 		if err != nil {
 			return nil, err
@@ -172,7 +194,7 @@ func (pd *API) FetchDealUpdates(dealID int) (DealUpdates, error) {
 	var dealUpdates DealUpdates
 	start := 0
 	for {
-		url := fmt.Sprintf(pd.eps.deals, dealID, start)
+		url := fmt.Sprintf(pd.Endpoints.Deals, dealID, start)
 		res, err := pd.getEndpoint(url)
 		if err != nil {
 			return nil, err
@@ -233,7 +255,7 @@ func (pd *API) FetchPipelineChanges(deals []Deal, stages Stages) (PipelineChange
 }
 
 func (pd *API) GetPipelineIDByName(name string) (int, error) {
-	res, err := pd.getEndpoint(pd.eps.pipelines)
+	res, err := pd.getEndpoint(pd.Endpoints.Pipelines)
 	if err != nil {
 		return 0, err
 	}
@@ -259,7 +281,7 @@ func (pd *API) GetPipelineIDByName(name string) (int, error) {
 }
 
 func (pd *API) RetrieveStagesForPipeline(plID int) (Stages, error) {
-	res, err := pd.getEndpoint(fmt.Sprintf(pd.eps.stages, plID))
+	res, err := pd.getEndpoint(fmt.Sprintf(pd.Endpoints.Stages, plID))
 	if err != nil {
 		return nil, err
 	}
@@ -274,7 +296,7 @@ func (pd *API) RetrieveStagesForPipeline(plID int) (Stages, error) {
 }
 
 func (pd *API) GetFilterIDByName(name string) (int, error) {
-	res, err := pd.getEndpoint(pd.eps.filters)
+	res, err := pd.getEndpoint(pd.Endpoints.Filters)
 	if err != nil {
 		return 0, err
 	}
@@ -299,7 +321,7 @@ func (pd *API) GetFilterIDByName(name string) (int, error) {
 }
 
 func (pd *API) GetDealFieldByID(id int) (DealField, error) {
-	res, err := pd.getEndpoint(pd.eps.filters)
+	res, err := pd.getEndpoint(pd.Endpoints.Filters)
 	if err != nil {
 		return DealField{}, err
 	}
