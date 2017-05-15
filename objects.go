@@ -2,10 +2,11 @@ package pipedrive
 
 import "time"
 
+// Pipeline models the pipeline API object
 type Pipeline struct {
 	ID         int    `json:"id"`
 	Name       string `json:"name"`
-	UrlTitle   string `json:"url_title"`
+	URLTitle   string `json:"url_title"`
 	OrderNr    int    `json:"order_nr"`
 	Active     bool   `json:"active"`
 	AddTime    Time   `json:"add_time"`
@@ -24,8 +25,9 @@ type apiResult struct {
 	} `json:"additional_data"`
 }
 
+// DealRef models a Pipedrive Deal
 type DealRef struct {
-	Id int `json:"id"`
+	ID int `json:"id"`
 	//"user_id": 872124,
 	Person struct {
 		ID    int    `json:"value"`
@@ -49,14 +51,17 @@ type DealRef struct {
 	Status          string  `json:"status"`
 	WonAt           *Time   `json:"won_time"`
 	LostAt          *Time   `json:"lost_time"`
+	LostReason      string  `json:"lost_reason"`
 	LastActivity    *Date   `json:"last_activity_date"`
 	Source          string  `json:"898dea9060ea3bb803e6a4f58c3c780b44e77cf7"`
 }
 
+// DealRefs is a list of Deals
 type DealRefs []DealRef
 
+// Deal models a Pipedrive Deal
 type Deal struct {
-	Id int `json:"id"`
+	ID int `json:"id"`
 	//"user_id": 872124,
 	Person          int     `json:"person_id"`
 	Organization    int     `json:"org_id"`
@@ -70,6 +75,7 @@ type Deal struct {
 	WonAt           *Time   `json:"won_time"`
 	LostAt          *Time   `json:"lost_time"`
 	LastActivity    *Date   `json:"last_activity_date"`
+	LostReason      *string `json:"lost_reason"`
 	Source          string  `json:"898dea9060ea3bb803e6a4f58c3c780b44e77cf7"`
 
 	/*
@@ -80,7 +86,6 @@ type Deal struct {
 	   "next_activity_time": "10:15:00",
 	   "next_activity_id": 5309,
 	   "last_activity_id": 5303,
-	   "lost_reason": null,
 	   "visible_to": "3",
 	   "close_time": null,
 	   "pipeline_id": 1,
@@ -250,7 +255,7 @@ func (cr PipelineChangeResult) DecisionTime() time.Time {
 type DealField struct {
 	ID         int    `json:"id"`
 	Name       string `json:"name"`
-	key        string `json:"key"`
+	Key        string `json:"key"`
 	OrderNr    int    `json:"order_nr"`
 	AddTime    Time   `json:"add_time"`
 	UpdateTime Time   `json:"update_time"`

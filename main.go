@@ -50,13 +50,16 @@ func NewAPI(options ...Option) (*API, error) {
 	return pd, nil
 }
 
+// GenericResponse lets the user of this package decode the data themselves
 type GenericResponse struct {
 	apiResult
 	Data json.RawMessage
 }
 
+// Urler generates an url given an offset.
 type Urler func(offset int) (string, error)
 
+// FetchGeneric calls the Pipedrive API with a GET request.
 func (pd *API) FetchGeneric(urlGenerator Urler, results chan GenericResponse) error {
 	offset := 0
 	for {
@@ -88,6 +91,7 @@ func (pd *API) FetchGeneric(urlGenerator Urler, results chan GenericResponse) er
 	}
 }
 
+// PutGeneric makes a PUT request to the Pipedrive API using the supplied endpoint and data.
 func (pd *API) PutGeneric(endpoint string, data io.Reader, results chan GenericResponse) error {
 	res, err := pd.putEndpoint(endpoint, data)
 	if err != nil {
@@ -190,6 +194,7 @@ func (pd *API) FetchDealsFromPipeline(plID, filterID int) (Deals, error) {
 	}
 }
 
+// FetchDealUpdates request updates for a specific deal
 func (pd *API) FetchDealUpdates(dealID int) (DealUpdates, error) {
 	var dealUpdates DealUpdates
 	start := 0
@@ -219,6 +224,7 @@ func (pd *API) FetchDealUpdates(dealID int) (DealUpdates, error) {
 	}
 }
 
+// FetchPipelineChanges generates a list of deals with changes between the given stages
 func (pd *API) FetchPipelineChanges(deals []Deal, stages Stages) (PipelineChangeResults, error) {
 	res := make([]PipelineChangeResult, 0, len(deals))
 	for i, deal := range deals {
@@ -230,7 +236,7 @@ func (pd *API) FetchPipelineChanges(deals []Deal, stages Stages) (PipelineChange
 			Phase: stages[0].Name,
 		}
 		dealFlow.Updates = append(dealFlow.Updates, item)
-		updates, err := pd.FetchDealUpdates(deal.Id)
+		updates, err := pd.FetchDealUpdates(deal.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -254,6 +260,7 @@ func (pd *API) FetchPipelineChanges(deals []Deal, stages Stages) (PipelineChange
 	return res, nil
 }
 
+// GetPipelineIDByName searches for the given pipeline and returns its ID.
 func (pd *API) GetPipelineIDByName(name string) (int, error) {
 	res, err := pd.getEndpoint(pd.Endpoints.Pipelines)
 	if err != nil {
@@ -280,6 +287,7 @@ func (pd *API) GetPipelineIDByName(name string) (int, error) {
 	return 0, fmt.Errorf("Pipeline '%s' not found", name)
 }
 
+// RetrieveStagesForPipeline returns all stages for a given pipeline
 func (pd *API) RetrieveStagesForPipeline(plID int) (Stages, error) {
 	res, err := pd.getEndpoint(fmt.Sprintf(pd.Endpoints.Stages, plID))
 	if err != nil {
@@ -295,6 +303,7 @@ func (pd *API) RetrieveStagesForPipeline(plID int) (Stages, error) {
 	return sres.Data, nil
 }
 
+// GetFilterIDByName returns the filter id for the given name
 func (pd *API) GetFilterIDByName(name string) (int, error) {
 	res, err := pd.getEndpoint(pd.Endpoints.Filters)
 	if err != nil {
@@ -320,6 +329,7 @@ func (pd *API) GetFilterIDByName(name string) (int, error) {
 	return 0, fmt.Errorf("Pipeline '%s' not found", name)
 }
 
+// GetDealFieldByID returns the DealField with the given ID.
 func (pd *API) GetDealFieldByID(id int) (DealField, error) {
 	res, err := pd.getEndpoint(pd.Endpoints.Filters)
 	if err != nil {

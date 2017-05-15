@@ -58,7 +58,7 @@ func main() {
 	}
 
 	if filterID > 0 && flag.NArg() > 0 {
-		fmt.Println("Fatal error: filter and explicit dealIDs are mutually exclusive\n")
+		fmt.Println("Fatal error: filter and explicit dealIDs are mutually exclusive")
 		os.Exit(1)
 	}
 
