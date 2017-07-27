@@ -54,6 +54,15 @@ type DealRef struct {
 	LostReason      string  `json:"lost_reason"`
 	LastActivity    *Date   `json:"last_activity_date"`
 	Source          string  `json:"898dea9060ea3bb803e6a4f58c3c780b44e77cf7"`
+	User            struct {
+		ID         int    `json:"id"`
+		Name       string `json:"name"`
+		Email      string `json:"email"`
+		HasPicture bool   `json:"has_pic"`
+		Active     bool   `json:"active_flag"`
+		Value      int    `json:"value"`
+		// PicHash
+	} `json:"user_id"`
 }
 
 // DealRefs is a list of Deals
