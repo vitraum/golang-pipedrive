@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-var ErrEmptyToken = errors.New("Token must not be empty")
+var ErrEmptyToken = errors.New("Pipedrive token must not be empty")
 
 var defaultEndpoints = endpoints{
 	PipelineDeals: "https://api.pipedrive.com/v1/pipelines/%d/deals?everyone=0&start=%d&filter_id=%d",
