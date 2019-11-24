@@ -7,16 +7,23 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sync"
+
+	"github.com/sirupsen/logrus"
 )
 
 type endpoints struct {
-	PipelineDeals string
-	Deal          string
-	Deals         string
-	DealFilter    string
-	Pipelines     string
-	Stages        string
-	Filters       string
+	PipelineDeals  string
+	Deal           string
+	Deals          string
+	DealFilter     string
+	Pipelines      string
+	Stages         string
+	Filters        string
+	DealField      string
+	DealFields     string
+	DealActivities string
+	Organization   string
 }
 
 type getEndpointFunc func(endpoint string) (*http.Response, error)
@@ -140,7 +147,7 @@ func (pd *API) FetchDeals(filterID int) (DealRefs, error) {
 	}
 }
 
-// FetchDeal returns a list of deals, optionally using a filter
+// FetchDeal returns a deal with the given id
 func (pd *API) FetchDeal(dealID int) (DealRef, error) {
 	url := fmt.Sprintf(pd.Endpoints.Deal, dealID)
 	res, err := pd.getEndpoint(url)
@@ -158,7 +165,7 @@ func (pd *API) FetchDeal(dealID int) (DealRef, error) {
 	err = json.NewDecoder(tee).Decode(&pres)
 
 	if err != nil {
-		fmt.Println(&buf)
+		logrus.Errorf("Error decoding result: %s", buf.String())
 		return DealRef{}, err
 	}
 
@@ -227,36 +234,79 @@ func (pd *API) FetchDealUpdates(dealID int) (DealUpdates, error) {
 // FetchPipelineChanges generates a list of deals with changes between the given stages
 func (pd *API) FetchPipelineChanges(deals []Deal, stages Stages) (PipelineChangeResults, error) {
 	res := make([]PipelineChangeResult, 0, len(deals))
-	for i, deal := range deals {
-		dealFlow := PipelineChangeResult{
-			Deal: deals[i],
-		}
-		item := DealFlowUpdate{
-			PiT:   dealFlow.Deal.Added,
-			Phase: stages[0].Name,
-		}
-		dealFlow.Updates = append(dealFlow.Updates, item)
-		updates, err := pd.FetchDealUpdates(deal.ID)
-		if err != nil {
-			return nil, err
-		}
-		for _, update := range updates {
-			if update.StoryData.ActionType != "edit" || len(update.StoryData.ChangeLog) == 0 {
-				continue
-			}
-			change := update.StoryData.ChangeLog[0]
-			if change.FieldName == "Phase" {
-				item := DealFlowUpdate{
-					PiT:   update.StoryData.AddTime,
-					Phase: change.NewValue.(string),
+
+	in := make(chan Deal)
+	out := make(chan PipelineChangeResult)
+	errors := make(chan error)
+
+	wg := sync.WaitGroup{}
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for deal := range in {
+				dealFlow := PipelineChangeResult{
+					Deal: deal,
 				}
-				dealFlow.Updates = append(dealFlow.Updates, item)
+				item := DealFlowUpdate{
+					PiT:   dealFlow.Deal.Added,
+					Phase: stages[0].Name,
+				}
+				dealFlow.PipelineUpdates = append(dealFlow.PipelineUpdates, item)
+				var err error
+				dealFlow.Updates, err = pd.FetchDealUpdates(deal.ID)
+				if err != nil {
+					errors <- err
+				}
+				for _, update := range dealFlow.Updates {
+					if update.StoryData.ActionType != "edit" || len(update.StoryData.ChangeLog) == 0 {
+						continue
+					}
+					change := update.StoryData.ChangeLog[0]
+					if change.FieldName == "Phase" {
+						item := DealFlowUpdate{
+							PiT:   update.StoryData.AddTime,
+							Phase: change.NewValue.(string),
+						}
+						dealFlow.PipelineUpdates = append(dealFlow.PipelineUpdates, item)
+					}
+				}
+
+				if len(dealFlow.PipelineUpdates) > 0 {
+					out <- dealFlow
+				}
 			}
-		}
-		if len(dealFlow.Updates) > 0 {
-			res = append(res, dealFlow)
-		}
+		}()
 	}
+
+	go func() {
+		for _, deal := range deals {
+			in <- deal
+		}
+		close(in)
+	}()
+
+	go func() {
+		for df := range out {
+			res = append(res, df)
+		}
+	}()
+
+	errs := []error{}
+	go func() {
+		for err := range errors {
+			errs = append(errs, err)
+		}
+	}()
+
+	wg.Wait()
+	close(out)
+	close(errors)
+
+	if len(errs) > 0 {
+		return nil, errs[0]
+	}
+
 	return res, nil
 }
 
@@ -331,7 +381,7 @@ func (pd *API) GetFilterIDByName(name string) (int, error) {
 
 // GetDealFieldByID returns the DealField with the given ID.
 func (pd *API) GetDealFieldByID(id int) (DealField, error) {
-	res, err := pd.getEndpoint(pd.Endpoints.Filters)
+	res, err := pd.getEndpoint(fmt.Sprintf(pd.Endpoints.DealField, id))
 	if err != nil {
 		return DealField{}, err
 	}
@@ -343,6 +393,92 @@ func (pd *API) GetDealFieldByID(id int) (DealField, error) {
 	err = json.NewDecoder(res.Body).Decode(&pres)
 	if err != nil {
 		return DealField{}, err
+	}
+
+	return pres.Data, nil
+}
+
+func (pd *API) GenericStreamHelper(worker func(r GenericResponse) error, generator Urler, closer func()) <-chan error {
+	errs := make(chan error)
+	wg := sync.WaitGroup{}
+
+	// TODO add context for cancelation
+
+	genresults := make(chan GenericResponse)
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err := pd.FetchGeneric(generator, genresults)
+		close(genresults)
+		if err != nil {
+			errs <- err
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for r := range genresults {
+			err := worker(r)
+			if err != nil {
+				errs <- err
+			}
+		}
+		closer()
+	}()
+
+	go func() {
+		wg.Wait()
+		close(errs)
+	}()
+
+	return errs
+}
+
+func (pd *API) FetchDealActivities(dealID int) (<-chan Activity, <-chan error) {
+	results := make(chan Activity)
+
+	generator := func(offset int) (string, error) {
+		return fmt.Sprintf(pd.Endpoints.DealActivities, dealID, offset), nil
+	}
+	worker := func(r GenericResponse) error {
+		result := []Activity{}
+		err := json.NewDecoder(bytes.NewReader(r.Data)).Decode(&result)
+		if err != nil {
+			return err
+		}
+		for _, a := range result {
+			results <- a
+		}
+		return nil
+	}
+	closer := func() { close(results) }
+	errs := pd.GenericStreamHelper(worker, generator, closer)
+
+	return results, errs
+}
+
+// FetchOrganization returns the Organization with the given id
+func (pd *API) FetchOrganization(orgID int) (Organization, error) {
+	url := fmt.Sprintf(pd.Endpoints.Organization, orgID)
+	res, err := pd.getEndpoint(url)
+	if err != nil {
+		return Organization{}, err
+	}
+
+	var pres struct {
+		apiResult
+		Data Organization
+	}
+
+	var buf bytes.Buffer
+	tee := io.TeeReader(res.Body, &buf)
+	err = json.NewDecoder(tee).Decode(&pres)
+
+	if err != nil {
+		logrus.Errorf("Error decoding result: %s", buf.String())
+		return Organization{}, err
 	}
 
 	return pres.Data, nil

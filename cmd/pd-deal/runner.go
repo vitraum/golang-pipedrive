@@ -1,16 +1,18 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
-	"html/template"
 	"math/rand"
 	"os"
-	"path"
 	"strconv"
+	"sync"
+	"text/template"
 	"time"
 
-	"github.com/vitraum/golang-pipedrive"
+	pipedrive "github.com/vitraum/golang-pipedrive"
 )
 
 var (
@@ -44,17 +46,15 @@ func main() {
 
 	flag.Parse()
 
-	if token == "" {
-		execname := path.Base(os.Args[0])
-		fmt.Printf("%s prints information about all deals\nUsage: %s [dealid] [dealid]...\n",
-			execname, execname)
-		flag.PrintDefaults()
-		os.Exit(1)
-	}
-
 	apiOptions := []pipedrive.Option{
 		pipedrive.HTTPFetcher,
-		pipedrive.FixedToken(token),
+	}
+
+	switch token {
+	case "":
+		apiOptions = append(apiOptions, pipedrive.EnvToken(""))
+	default:
+		apiOptions = append(apiOptions, pipedrive.FixedToken(token))
 	}
 
 	if filterID > 0 && flag.NArg() > 0 {
@@ -87,42 +87,97 @@ func main() {
 	if !skipNewline {
 		outputTemplate = fmt.Sprintf("%s\n", outputTemplate)
 	}
-	tmpl = template.Must(template.New("name").Parse(outputTemplate))
 
 	pd, err := pipedrive.NewAPI(apiOptions...)
 	if err != nil {
 		panic(err)
 	}
 
-	var deals []interface{}
+	tmpl = template.New("name")
+	tmpl.Funcs(template.FuncMap{
+		"Age": func(t pipedrive.Time) int { return int(time.Now().Sub(t.Time).Hours()) / 24 },
+		"Org": func(id int) pipedrive.Organization {
+			org, err := pd.FetchOrganization(id)
+			if err != nil {
+				panic(err)
+			}
+			return org
+		},
+	})
+	tmpl = template.Must(tmpl.Parse(outputTemplate))
+
+	deals := make(chan interface{})
+	var wg sync.WaitGroup
 	if flag.NArg() > 0 {
-		deals, err = selectDeals(pd, flag.Args())
-		if err != nil {
-			panic(err)
-		}
-	} else {
-		alldeals, err := pd.FetchDeals(filterID)
-		if err != nil {
-			panic(err)
+		wg.Add(1)
+
+		fetchDeals := func(deals []string, out chan<- interface{}, copydone, done func()) {
+			tmp := make([]string, len(deals))
+			copy(tmp, deals)
+			copydone()
+			//logrus.Infof("selectDeals with %d deals", len(deals))
+			err := selectDeals(pd, tmp, out)
+			if err != nil {
+				panic(err)
+			}
+			done()
 		}
 
-		if sample > 0 {
-			for i := len(deals); i < sample; i++ {
-				deals = append(deals, alldeals[rand.Intn(len(alldeals))])
+		go func() {
+			defer wg.Done()
+			cutoff := flag.NArg() / 5
+			//logrus.Infof("cutoff %d %d", cutoff, flag.NArg())
+			tmpDeals := make([]string, 0, cutoff)
+			for _, dealID := range flag.Args() {
+				tmpDeals = append(tmpDeals, dealID)
+				if len(tmpDeals) <= cutoff {
+					continue
+				}
+				var wgtmp sync.WaitGroup
+				wg.Add(1)
+				wgtmp.Add(1)
+				go fetchDeals(tmpDeals, deals, func() { wgtmp.Done() }, func() { wg.Done() })
+				wgtmp.Wait()
+				tmpDeals = make([]string, 0, cutoff)
 			}
-		} else {
-			for i := 0; i < len(alldeals); i++ {
-				deals = append(deals, alldeals[i])
+			if len(tmpDeals) > 0 {
+				wg.Add(1)
+				fetchDeals(tmpDeals, deals, func() {}, func() { wg.Done() })
 			}
-		}
+		}()
+
+	} else {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			alldeals, err := pd.FetchDeals(filterID)
+			if err != nil {
+				panic(err)
+			}
+
+			if sample > 0 {
+				for i := 0; i < sample; i++ {
+					deals <- alldeals[rand.Intn(len(alldeals))]
+				}
+			} else {
+				for _, d := range alldeals {
+					deals <- d
+				}
+			}
+		}()
 	}
 
 	if showVariables {
-		fmt.Printf("%+v\n", deals[0])
+		fmt.Printf("%+v\n", <-deals)
 		os.Exit(0)
 	}
 
-	for _, deal := range deals {
+	go func() {
+		wg.Wait()
+		close(deals)
+	}()
+
+	for deal := range deals {
 		err = printDeal(deal)
 		if err != nil {
 			panic(err)
@@ -131,22 +186,37 @@ func main() {
 }
 
 func printDeal(deal interface{}) error {
+	dj, err := json.Marshal(deal)
+	if err != nil {
+		panic(err)
+	}
+
+	jsonDeal := map[string]interface{}{}
+	err = json.Unmarshal(dj, &jsonDeal)
+	if err != nil {
+		panic(err)
+	}
+
 	return tmpl.Execute(os.Stdout, deal)
 }
 
-func selectDeals(pd *pipedrive.API, dealIDs []string) ([]interface{}, error) {
-	deals := make([]interface{}, 0, len(dealIDs))
+func selectDeals(pd *pipedrive.API, dealIDs []string, out chan<- interface{}) error {
 	for _, dealString := range dealIDs {
 		dealID, err := strconv.Atoi(dealString)
 		if err != nil {
-			return nil, err
+			return err
+		}
+		if dealID == 0 {
+			return errors.New("DealID 0 not allowed")
 		}
 
+		start := time.Now()
 		deal, err := pd.FetchDeal(dealID)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		deals = append(deals, deal)
+		out <- deal
+		time.Sleep(time.Until(start.Add(1 * time.Second)))
 	}
-	return deals, nil
+	return nil
 }

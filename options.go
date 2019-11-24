@@ -14,13 +14,17 @@ import (
 var ErrEmptyToken = errors.New("Pipedrive token must not be empty")
 
 var defaultEndpoints = endpoints{
-	PipelineDeals: "https://api.pipedrive.com/v1/pipelines/%d/deals?everyone=0&start=%d&filter_id=%d",
-	Deals:         "https://api.pipedrive.com/v1/deals/%d/updates?start=%d",
-	Deal:          "https://api.pipedrive.com/v1/deals/%d",
-	DealFilter:    "https://api.pipedrive.com/v1/deals?start=%d&filter_id=%d",
-	Pipelines:     "https://api.pipedrive.com/v1/pipelines",
-	Stages:        "https://api.pipedrive.com/v1/stages?pipeline_id=%d",
-	Filters:       "https://api.pipedrive.com/v1/filters",
+	PipelineDeals:  "https://api.pipedrive.com/v1/pipelines/%d/deals?everyone=0&start=%d&filter_id=%d&limit=500",
+	Deals:          "https://api.pipedrive.com/v1/deals/%d/updates?start=%d",
+	Deal:           "https://api.pipedrive.com/v1/deals/%d",
+	DealFilter:     "https://api.pipedrive.com/v1/deals?start=%d&filter_id=%d&limit=500",
+	DealActivities: "https://api.pipedrive.com/v1/deals/%d/activities?start=%d",
+	Pipelines:      "https://api.pipedrive.com/v1/pipelines",
+	Stages:         "https://api.pipedrive.com/v1/stages?pipeline_id=%d",
+	Filters:        "https://api.pipedrive.com/v1/filters",
+	DealFields:     "https://api.pipedrive.com/v1/dealFields",
+	DealField:      "https://api.pipedrive.com/v1/dealFields/%d",
+	Organization:   "https://api.pipedrive.com/v1/organizations/%d",
 }
 
 func LogURLs(a *API) error {

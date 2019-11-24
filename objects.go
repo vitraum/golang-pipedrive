@@ -54,6 +54,7 @@ type DealRef struct {
 	LostReason      string  `json:"lost_reason"`
 	LastActivity    *Date   `json:"last_activity_date"`
 	Source          string  `json:"898dea9060ea3bb803e6a4f58c3c780b44e77cf7"`
+	LeadDate        string  `json:"19cef73a8ff77b70bf05736552155a7b9f97a36f"`
 	User            struct {
 		ID         int    `json:"id"`
 		Name       string `json:"name"`
@@ -63,6 +64,44 @@ type DealRef struct {
 		Value      int    `json:"value"`
 		// PicHash
 	} `json:"user_id"`
+}
+
+type Activity struct {
+	ID                 int         `json:"id"`
+	CompanyID          int         `json:"company_id"`
+	UserID             int         `json:"user_id"`
+	Done               bool        `json:"done"`
+	Type               string      `json:"type"`
+	ReferenceType      string      `json:"reference_type"`
+	ReferenceID        interface{} `json:"reference_id"`
+	DueDate            string      `json:"due_date"`
+	DueTime            string      `json:"due_time"`
+	Duration           string      `json:"duration"`
+	AddTime            string      `json:"add_time"`
+	MarkedAsDoneTime   string      `json:"marked_as_done_time"`
+	Subject            string      `json:"subject"`
+	DealID             int         `json:"deal_id"`
+	OrgID              int         `json:"org_id"`
+	PersonID           int         `json:"person_id"`
+	ActiveFlag         bool        `json:"active_flag"`
+	UpdateTime         string      `json:"update_time"`
+	GcalEventID        interface{} `json:"gcal_event_id"`
+	GoogleCalendarID   interface{} `json:"google_calendar_id"`
+	GoogleCalendarEtag interface{} `json:"google_calendar_etag"`
+	Note               string      `json:"note"`
+	NoteClean          string      `json:"note_clean"`
+	Participants       []struct {
+		PersonID    int  `json:"person_id"`
+		PrimaryFlag bool `json:"primary_flag"`
+	} `json:"participants"`
+	PersonName       string `json:"person_name"`
+	OrgName          string `json:"org_name"`
+	DealTitle        string `json:"deal_title"`
+	AssignedToUserID int    `json:"assigned_to_user_id"`
+	CreatedByUserID  int    `json:"created_by_user_id"`
+	OwnerName        string `json:"owner_name"`
+	PersonDropboxBcc string `json:"person_dropbox_bcc"`
+	DealDropboxBcc   string `json:"deal_dropbox_bcc"`
 }
 
 // DealRefs is a list of Deals
@@ -86,6 +125,7 @@ type Deal struct {
 	LastActivity    *Date   `json:"last_activity_date"`
 	LostReason      *string `json:"lost_reason"`
 	Source          string  `json:"898dea9060ea3bb803e6a4f58c3c780b44e77cf7"`
+	LeadDate        string  `json:"19cef73a8ff77b70bf05736552155a7b9f97a36f"`
 
 	/*
 	   "currency": "EUR",
@@ -245,8 +285,9 @@ func (slice DealFlowUpdates) Swap(i, j int) {
 }
 
 type PipelineChangeResult struct {
-	Deal    Deal
-	Updates DealFlowUpdates
+	Deal            Deal
+	PipelineUpdates DealFlowUpdates
+	Updates         DealUpdates
 }
 
 type PipelineChangeResults []PipelineChangeResult
@@ -283,4 +324,126 @@ type DealField struct {
 	   "important_flag": true,
 	   "bulk_edit_allowed": true,
 	*/
+}
+
+type Organization struct {
+	ID        int    `json:"id"`
+	CompanyID int    `json:"company_id"`
+	Name      string `json:"name"`
+	OwnerID   struct {
+		ID         int         `json:"id"`
+		Name       string      `json:"name"`
+		Email      string      `json:"email"`
+		HasPic     bool        `json:"has_pic"`
+		PicHash    interface{} `json:"pic_hash"`
+		ActiveFlag bool        `json:"active_flag"`
+		Value      int         `json:"value"`
+	} `json:"owner_id"`
+	OpenDealsCount           int         `json:"open_deals_count"`
+	RelatedOpenDealsCount    int         `json:"related_open_deals_count"`
+	ClosedDealsCount         int         `json:"closed_deals_count"`
+	RelatedClosedDealsCount  int         `json:"related_closed_deals_count"`
+	EmailMessagesCount       int         `json:"email_messages_count"`
+	PeopleCount              int         `json:"people_count"`
+	ActivitiesCount          int         `json:"activities_count"`
+	DoneActivitiesCount      int         `json:"done_activities_count"`
+	UndoneActivitiesCount    int         `json:"undone_activities_count"`
+	ReferenceActivitiesCount int         `json:"reference_activities_count"`
+	FilesCount               int         `json:"files_count"`
+	NotesCount               int         `json:"notes_count"`
+	FollowersCount           int         `json:"followers_count"`
+	WonDealsCount            int         `json:"won_deals_count"`
+	RelatedWonDealsCount     int         `json:"related_won_deals_count"`
+	LostDealsCount           int         `json:"lost_deals_count"`
+	RelatedLostDealsCount    int         `json:"related_lost_deals_count"`
+	ActiveFlag               bool        `json:"active_flag"`
+	CategoryID               interface{} `json:"category_id"`
+	PictureID                interface{} `json:"picture_id"`
+	CountryCode              interface{} `json:"country_code"`
+	FirstChar                string      `json:"first_char"`
+	UpdateTime               string      `json:"update_time"`
+	AddTime                  string      `json:"add_time"`
+	VisibleTo                string      `json:"visible_to"`
+	NextActivityDate         interface{} `json:"next_activity_date"`
+	NextActivityTime         interface{} `json:"next_activity_time"`
+	NextActivityID           interface{} `json:"next_activity_id"`
+	LastActivityID           int         `json:"last_activity_id"`
+	LastActivityDate         string      `json:"last_activity_date"`
+	Address                  string      `json:"address"`
+	AddressSubpremise        string      `json:"address_subpremise"`
+	AddressStreetNumber      string      `json:"address_street_number"`
+	AddressRoute             string      `json:"address_route"`
+	AddressSublocality       string      `json:"address_sublocality"`
+	AddressLocality          string      `json:"address_locality"`
+	AddressAdminAreaLevel1   string      `json:"address_admin_area_level_1"`
+	AddressAdminAreaLevel2   string      `json:"address_admin_area_level_2"`
+	AddressCountry           string      `json:"address_country"`
+	AddressPostalCode        string      `json:"address_postal_code"`
+	AddressFormattedAddress  string      `json:"address_formatted_address"`
+	Label                    interface{} `json:"label"`
+	CcEmail                  string      `json:"cc_email"`
+	OwnerName                string      `json:"owner_name"`
+	EditName                 bool        `json:"edit_name"`
+	LastActivity             struct {
+		ID                         int         `json:"id"`
+		CompanyID                  int         `json:"company_id"`
+		UserID                     int         `json:"user_id"`
+		Done                       bool        `json:"done"`
+		Type                       string      `json:"type"`
+		ReferenceType              string      `json:"reference_type"`
+		ReferenceID                interface{} `json:"reference_id"`
+		DueDate                    string      `json:"due_date"`
+		DueTime                    string      `json:"due_time"`
+		Duration                   string      `json:"duration"`
+		BusyFlag                   interface{} `json:"busy_flag"`
+		AddTime                    string      `json:"add_time"`
+		MarkedAsDoneTime           string      `json:"marked_as_done_time"`
+		LastNotificationTime       interface{} `json:"last_notification_time"`
+		LastNotificationUserID     interface{} `json:"last_notification_user_id"`
+		NotificationLanguageID     interface{} `json:"notification_language_id"`
+		Subject                    string      `json:"subject"`
+		PublicDescription          interface{} `json:"public_description"`
+		CalendarSyncIncludeContext interface{} `json:"calendar_sync_include_context"`
+		Location                   interface{} `json:"location"`
+		OrgID                      int         `json:"org_id"`
+		PersonID                   int         `json:"person_id"`
+		DealID                     int         `json:"deal_id"`
+		ActiveFlag                 bool        `json:"active_flag"`
+		UpdateTime                 string      `json:"update_time"`
+		UpdateUserID               interface{} `json:"update_user_id"`
+		GcalEventID                interface{} `json:"gcal_event_id"`
+		GoogleCalendarID           interface{} `json:"google_calendar_id"`
+		GoogleCalendarEtag         interface{} `json:"google_calendar_etag"`
+		SourceTimezone             interface{} `json:"source_timezone"`
+		RecRule                    interface{} `json:"rec_rule"`
+		RecRuleExtension           interface{} `json:"rec_rule_extension"`
+		RecMasterActivityID        interface{} `json:"rec_master_activity_id"`
+		Note                       string      `json:"note"`
+		CreatedByUserID            int         `json:"created_by_user_id"`
+		LocationSubpremise         interface{} `json:"location_subpremise"`
+		LocationStreetNumber       interface{} `json:"location_street_number"`
+		LocationRoute              interface{} `json:"location_route"`
+		LocationSublocality        interface{} `json:"location_sublocality"`
+		LocationLocality           interface{} `json:"location_locality"`
+		LocationAdminAreaLevel1    interface{} `json:"location_admin_area_level_1"`
+		LocationAdminAreaLevel2    interface{} `json:"location_admin_area_level_2"`
+		LocationCountry            interface{} `json:"location_country"`
+		LocationPostalCode         interface{} `json:"location_postal_code"`
+		LocationFormattedAddress   interface{} `json:"location_formatted_address"`
+		Attendees                  interface{} `json:"attendees"`
+		Participants               []struct {
+			PersonID    int  `json:"person_id"`
+			PrimaryFlag bool `json:"primary_flag"`
+		} `json:"participants"`
+		Series           interface{} `json:"series"`
+		OrgName          string      `json:"org_name"`
+		PersonName       string      `json:"person_name"`
+		DealTitle        string      `json:"deal_title"`
+		OwnerName        string      `json:"owner_name"`
+		PersonDropboxBcc string      `json:"person_dropbox_bcc"`
+		DealDropboxBcc   string      `json:"deal_dropbox_bcc"`
+		AssignedToUserID int         `json:"assigned_to_user_id"`
+		File             interface{} `json:"file"`
+	} `json:"last_activity"`
+	NextActivity interface{} `json:"next_activity"`
 }
