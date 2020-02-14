@@ -59,7 +59,7 @@ type DealRef struct {
 		ID         int    `json:"id"`
 		Name       string `json:"name"`
 		Email      string `json:"email"`
-		HasPicture bool   `json:"has_pic"`
+		HasPicture int    `json:"has_pic"`
 		Active     bool   `json:"active_flag"`
 		Value      int    `json:"value"`
 		// PicHash
@@ -334,7 +334,7 @@ type Organization struct {
 		ID         int         `json:"id"`
 		Name       string      `json:"name"`
 		Email      string      `json:"email"`
-		HasPic     bool        `json:"has_pic"`
+		HasPic     int         `json:"has_pic"`
 		PicHash    interface{} `json:"pic_hash"`
 		ActiveFlag bool        `json:"active_flag"`
 		Value      int         `json:"value"`
