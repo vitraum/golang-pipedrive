@@ -48,6 +48,8 @@ func main() {
 
 	apiOptions := []pipedrive.Option{
 		pipedrive.HTTPFetcher,
+		pipedrive.WithCustomOrgFields(),
+		pipedrive.WithCustomDealFields(),
 	}
 
 	switch token {

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -130,6 +131,112 @@ func HTTPFetcherWithTimeout(timeout time.Duration) Option {
 		}
 		a.getEndpoint = a.endpointFuncWithClient(client.Get)
 		a.putEndpoint = a.requestEndpointFuncWithClient(client.Do, "PUT")
+		return nil
+	}
+}
+
+func WithCustomOrgFields() Option {
+	fields := make(map[string]cFieldExtractor)
+
+	initOrgFields := func(a *API) error {
+		fields["460a5e9346f7b7bf008904a285414900bd70ecbc"] = func(v interface{}) (string, interface{}, error) {
+			if v == nil {
+				return "E-Mail", "", nil
+			}
+			if vv, ok := v.(string); ok {
+				return "E-Mail", vv, nil
+			}
+			return "", nil, fmt.Errorf("could not map: %#v", v)
+		}
+		return nil
+	}
+
+	mapOrgFields := func(o *Organization, jv map[string]interface{}) {
+		if o.CustomFields == nil {
+			o.CustomFields = make(map[string]interface{})
+		}
+		for key, ex := range fields {
+			v, e := jv[key]
+			if !e {
+				continue
+			}
+			k, v, err := ex(jv[key])
+			if err != nil {
+				log.Print(err)
+			}
+			o.CustomFields[k] = v
+		}
+	}
+
+	return func(a *API) error {
+		a.afterInit = append(a.afterInit, initOrgFields)
+		a.mapFieldsOrg = mapOrgFields
+		return nil
+	}
+}
+
+type cFieldExtractor func(v interface{}) (string, interface{}, error)
+
+func WithCustomDealFields() Option {
+	fields := make(map[string]cFieldExtractor)
+
+	initDealFields := func(a *API) error {
+		fields["66dd77c15a4867a95be45bc3ecc162fdf74a4c76"] = func(v interface{}) (string, interface{}, error) {
+			if v == nil {
+				return "Kunde to Go", "", nil
+			}
+			if vv, ok := v.(string); ok {
+				switch vv {
+				case "758":
+					return "Kunde to Go", "Ja", nil
+				case "759":
+					return "Kunde to Go", "Nein", nil
+				}
+			}
+			return "", nil, fmt.Errorf("could not map: %#v", v)
+		}
+		fields["7de67a2875cf1fee9aa92dd0f8c65f5b24226b34"] = func(v interface{}) (string, interface{}, error) {
+			if v == nil {
+				return "Aktion", "", nil
+			}
+			if vv, ok := v.(string); ok {
+				return "Aktion", vv, nil
+			}
+			return "", nil, fmt.Errorf("could not map: %#v", v)
+		}
+		fields["1ed188d19ec50c6563dbdad533126dc58882b429"] = func(v interface{}) (string, interface{}, error) {
+			if v == nil {
+				return "Lead - Quelle / Medium", "", nil
+			}
+			if vv, ok := v.(string); ok {
+				return "Lead - Quelle / Medium", vv, nil
+			}
+			return "", nil, fmt.Errorf("could not map: %#v", v)
+		}
+
+		return nil
+	}
+
+	mapDealFields := func(d *DealRef, jv map[string]interface{}) {
+		if d.CustomFields == nil {
+			d.CustomFields = make(map[string]interface{})
+		}
+		for key, ex := range fields {
+			v, e := jv[key]
+			if !e {
+				continue
+			}
+			k, v, err := ex(jv[key])
+			if err != nil {
+				log.Print(err)
+			}
+			d.CustomFields[k] = v
+		}
+	}
+
+	return func(a *API) error {
+		a.afterInit = append(a.afterInit, initDealFields)
+		a.mapFieldsDeal = mapDealFields
 		return nil
 	}
 }

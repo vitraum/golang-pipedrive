@@ -64,6 +64,8 @@ type DealRef struct {
 		Value      int    `json:"value"`
 		// PicHash
 	} `json:"user_id"`
+
+	CustomFields CustomFieldMap
 }
 
 type Activity struct {
@@ -127,6 +129,7 @@ type Deal struct {
 	Source          string  `json:"898dea9060ea3bb803e6a4f58c3c780b44e77cf7"`
 	LeadDate        string  `json:"19cef73a8ff77b70bf05736552155a7b9f97a36f"`
 
+	CustomFields CustomFieldMap
 	/*
 	   "currency": "EUR",
 	   "active": true,
@@ -446,4 +449,34 @@ type Organization struct {
 		File             interface{} `json:"file"`
 	} `json:"last_activity"`
 	NextActivity interface{} `json:"next_activity"`
+
+	CustomFields CustomFieldMap
+}
+
+type CustomFieldMap map[string]interface{}
+
+type OrganizationField struct {
+	ID                  int         `json:"id"`
+	Key                 string      `json:"key"`
+	Name                string      `json:"name"`
+	OrderNr             int         `json:"order_nr"`
+	FieldType           string      `json:"field_type"`
+	AddTime             string      `json:"add_time"`
+	UpdateTime          string      `json:"update_time"`
+	LastUpdatedByUserID interface{} `json:"last_updated_by_user_id"`
+	ActiveFlag          bool        `json:"active_flag"`
+	EditFlag            bool        `json:"edit_flag"`
+	IndexVisibleFlag    bool        `json:"index_visible_flag"`
+	DetailsVisibleFlag  bool        `json:"details_visible_flag"`
+	AddVisibleFlag      bool        `json:"add_visible_flag"`
+	ImportantFlag       bool        `json:"important_flag"`
+	BulkEditAllowed     bool        `json:"bulk_edit_allowed"`
+	SearchableFlag      bool        `json:"searchable_flag"`
+	FilteringAllowed    bool        `json:"filtering_allowed"`
+	SortableFlag        bool        `json:"sortable_flag"`
+	Options             []struct {
+		Label string `json:"label"`
+		ID    int    `json:"id"`
+	} `json:"options"`
+	MandatoryFlag bool `json:"mandatory_flag"`
 }

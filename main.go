@@ -21,9 +21,11 @@ type endpoints struct {
 	Stages         string
 	Filters        string
 	DealField      string
-	DealFields     string
 	DealActivities string
 	Organization   string
+
+	DealFields         string
+	OrganizationFields string
 }
 
 type getEndpointFunc func(endpoint string) (*http.Response, error)
@@ -35,7 +37,13 @@ type API struct {
 	Endpoints   endpoints
 	getEndpoint getEndpointFunc
 	putEndpoint putEndpointFunc
-	logURL      func(url string)
+
+	afterInit []Option
+
+	mapFieldsOrg  func(*Organization, map[string]interface{})
+	mapFieldsDeal func(*DealRef, map[string]interface{})
+
+	logURL func(url string)
 }
 
 // Option represents an option given to the API constructor
@@ -44,11 +52,19 @@ type Option func(*API) error
 // NewAPI create a new API object from the given options
 func NewAPI(options ...Option) (*API, error) {
 	pd := &API{
-		logURL: func(u string) {},
+		logURL:    func(u string) {},
+		afterInit: make([]Option, 0),
 	}
 
 	for _, option := range options {
 		err := option(pd)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	for _, initF := range pd.afterInit {
+		err := initF(pd)
 		if err != nil {
 			return nil, err
 		}
@@ -85,7 +101,11 @@ func (pd *API) FetchGeneric(urlGenerator Urler, results chan GenericResponse) er
 
 		var response GenericResponse
 		err = json.NewDecoder(res.Body).Decode(&response)
+		err2 := res.Body.Close()
 		if err != nil {
+			return err
+		}
+		if err2 != nil {
 			return err
 		}
 		results <- response
@@ -131,13 +151,28 @@ func (pd *API) FetchDeals(filterID int) (DealRefs, error) {
 
 		var pres struct {
 			apiResult
-			Data DealRefs
+			Data []json.RawMessage
 		}
 		err = json.NewDecoder(res.Body).Decode(&pres)
 		if err != nil {
 			return nil, err
 		}
-		deals = append(deals, pres.Data...)
+		for _, data := range pres.Data {
+			var dr DealRef
+			err = json.Unmarshal(data, &dr)
+			if err != nil {
+				return nil, err
+			}
+			if pd.mapFieldsDeal != nil {
+				var jv map[string]interface{}
+				err = json.Unmarshal(data, &jv)
+				if err != nil {
+					return nil, err
+				}
+				pd.mapFieldsDeal(&dr, jv)
+			}
+			deals = append(deals, dr)
+		}
 
 		if !pres.AdditionalData.Pagination.MoreItemsInCollection {
 			return deals, nil
@@ -169,7 +204,19 @@ func (pd *API) FetchDeal(dealID int) (DealRef, error) {
 		return DealRef{}, err
 	}
 
-	return pres.Data, nil
+	dr := pres.Data
+	if pd.mapFieldsDeal != nil {
+		mf := struct {
+			Data map[string]interface{}
+		}{}
+		err = json.Unmarshal(buf.Bytes(), &mf)
+		if err != nil {
+			return DealRef{}, err
+		}
+		pd.mapFieldsDeal(&dr, mf.Data)
+	}
+
+	return dr, nil
 }
 
 // FetchDealsFromPipeline returns a list of all deals in a pipeline, optionally using a filter
@@ -475,11 +522,25 @@ func (pd *API) FetchOrganization(orgID int) (Organization, error) {
 	var buf bytes.Buffer
 	tee := io.TeeReader(res.Body, &buf)
 	err = json.NewDecoder(tee).Decode(&pres)
-
 	if err != nil {
 		logrus.Errorf("Error decoding result: %s", buf.String())
 		return Organization{}, err
 	}
+	o := pres.Data
 
-	return pres.Data, nil
+	if pd.mapFieldsOrg != nil {
+		var cvres struct {
+			apiResult
+			Data map[string]interface{}
+		}
+
+		err = json.Unmarshal(buf.Bytes(), &cvres)
+		if err != nil {
+			logrus.Errorf("Error decoding result: %s", buf.String())
+			return Organization{}, err
+		}
+		pd.mapFieldsOrg(&o, cvres.Data)
+	}
+
+	return o, nil
 }
